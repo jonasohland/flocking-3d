@@ -16,7 +16,7 @@ boolean pause;
 boolean webview;
 boolean neighborhoodview;
 
-int mX,mY,camX,camY;
+int mX, mY, camX, camY;
 
 Vector3D ghetto;
 
@@ -27,7 +27,7 @@ SecondLayer layer;
 void setup() {
   
   size(800,600,P3D); 
-  //size(320, 240, P3D);
+  
   colorMode(RGB,255,255,255,100);
 
   cylinderDetail(300);
@@ -427,7 +427,7 @@ class Boid {
     if (neighbors.size() == 0) return sum;
     for (int i = 0 ; i < neighbors.size(); i++) {
       Boid other = (Boid) neighbors.get(i);
-      float d = loc.distance(loc,other.loc);
+      // float d = loc.distance(loc,other.loc);
       sum.add(other.loc); // Add location
     }
     sum.div((float)neighbors.size());
