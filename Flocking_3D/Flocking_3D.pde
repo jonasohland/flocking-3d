@@ -1,38 +1,14 @@
-/**
- * Boid flocking implementation featuring: <br>
- * - obstacle avoidance <br>
- * - conic perception field <br>
- * - flight perturbation <br>
- * - field of perception visualization (mousecklick or 'n' for neighborhood) <br>
- * - interaction network visualization ('w' for web) <br>
- * - press 'space' to pause the simulation <br>
-
- * built on top of: <br>
- *
- * Flocking
- * by Daniel Shiffman. 
-*/
-
-
 float separation = 0.6f;
 float alignment = 0.5f;
 float cohesion = 0.7f;
 
 float randomisation = 0.01f;
 
-int graincount = 100;
+int graincount = 500;
 
 
 import processing.opengl.*;
 import processing.dxf.*;
-
-
-import oscP5.*;
-import netP5.*;
-
-OscP5 oscP5;
-NetAddress remote;
-
 
 boolean record;
 
@@ -49,11 +25,6 @@ Matter matter;
 SecondLayer layer;
 
 void setup() {
-  
-   oscP5 = new OscP5(this,12000);
-   remote = new NetAddress("127.0.0.1",10002);
-  
-  
   
   size(800,600,P3D); 
   //size(320, 240, P3D);
@@ -88,7 +59,7 @@ void setup() {
 
 void keyPressed() {
   if (key == 32) pause = !pause;
-  if (key == 110) flock.toggleNbhdRep(); // 110 is 'n' for neighborhood
+  // if (key == 110) flock.toggleNbhdRep(); // 110 is 'n' for neighborhood
   if (key == 119) flock.toggleWebRepp(); // 119 is 'w' for web-view
   if (key == 'r') record = true;
 
@@ -141,36 +112,10 @@ class Flock {
   }
   
   void run() {
-    OscMessage boidcoordinatesx = new OscMessage("");
-    OscMessage boidcoordinatesy = new OscMessage("");
-    OscMessage boidcoordinatesz = new OscMessage("");
-    OscMessage boidgroup = new OscMessage("");
-    OscBundle boidBundle = new OscBundle();
     for (int i = 0; i < boids.size(); i++) {
       Boid b = (Boid) boids.get(i);  
       b.run(boids);  // Passing the entire list of boids to each boid individually
-       boidcoordinatesx.setAddrPattern("/boid" + i + "/x");
-       boidcoordinatesy.setAddrPattern("/boid" + i + "/y");
-       boidcoordinatesz.setAddrPattern("/boid" + i + "/z");
-       boidgroup.setAddrPattern("/boid" + i + "/grp");
-         boidcoordinatesx.add(b.loc.z);
-         boidcoordinatesy.add(b.loc.y);
-         boidcoordinatesz.add(b.loc.x);
-         boidgroup.add(b.group);
-      boidBundle.add(boidcoordinatesx); 
-      boidBundle.add(boidcoordinatesy);
-      boidBundle.add(boidcoordinatesz);
-      boidBundle.add(boidgroup);
-        boidcoordinatesx.clear();
-        boidcoordinatesy.clear();
-        boidcoordinatesz.clear();
-        boidgroup.clear();
-        
     }
-    oscP5.send(boidBundle, remote);
-    boidBundle.clear();
-    
-
   }
 
   void addBoid(Boid b) {
@@ -312,11 +257,6 @@ class Boid {
               this.group = grp;
           }
         }
-        
-        
-        
-        
-       
     }
   }
 
