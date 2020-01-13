@@ -20,9 +20,9 @@ class SecondLayer {
   }  
   
   void render(){
-    loadPixels();
-    for (int i=0; i < width * height; i++)
-      if (px[i] != color(0)) pixels[i] = px[i];
-    updatePixels();
+    //loadPixels();
+    //for (int i=0; i < width * height; i++)
+      //if (px[i] != color(0)) pixels[i] = px[i];
+    //updatePixels();
   }
 }

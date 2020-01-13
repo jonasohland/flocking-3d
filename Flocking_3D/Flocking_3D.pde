@@ -1,11 +1,16 @@
+import oscP5.*;
+import netP5.*;
+
 float separation = 0.6f;
 float alignment = 0.5f;
 float cohesion = 0.7f;
 
+float maxspeed = 2f;
+float maxforce = 0.5f;
+
 float randomisation = 0.01f;
 
-int graincount = 500;
-
+int graincount = 1;
 
 import processing.opengl.*;
 import processing.dxf.*;
@@ -16,17 +21,26 @@ boolean pause;
 boolean webview;
 boolean neighborhoodview;
 
-int mX, mY, camX, camY;
+int cam_x = 1000;
+int cam_y = 250;
+int cam_z = -250;
+
+int cam_px = 250;
+int cam_py = 250;
+int cam_pz = -250;
+
+Vector3D wind = new Vector3D(0, 0, 0);
 
 Vector3D ghetto;
 
 Flock flock;
 Matter matter;
-SecondLayer layer;
+OscP5 oscP5;
+NetAddress remote;
 
 void setup() {
   
-  size(800,600,P3D); 
+  size(1200,1000,P3D); 
   
   colorMode(RGB,255,255,255,100);
 
@@ -38,24 +52,64 @@ void setup() {
   
   flock = new Flock();
   // Add an initial set of boids into the system
-  for (int i = 0; i < graincount; i++) {
-    flock.addBoid(new Boid(new Vector3D(random(width/2),random(height/2)),2.0f,0.05f, i));
-  }
+  for (int i = 0; i < graincount; i++)
+    flock.addBoid(new Boid(new Vector3D(random(width/2),random(height/2)), i));
   
   matter = new Matter();
-  // Add some particles to the system
+  
   matter.addParticle(new Particle(new Vector3D(250,250,250), 100f, color(180,180,180)));
-  /*matter.addParticle(new Particle(new Vector3D(300,300,330), 92f, color(180,180,180)));
-  matter.addParticle(new Particle(new Vector3D(80,120,220), 34f, color(180,180,180)));
-  matter.addParticle(new Particle(new Vector3D(220,60,320), 10f, color(180,180,180))); 
-  matter.addParticle(new Particle(new Vector3D(60,400,20), 70f, color(180,180,180))); 
-  matter.addParticle(new Particle(new Vector3D(140,200,90), 40f, color(180,180,180))); 
-  matter.addParticle(new Particle(new Vector3D(140,200,300), 30f, color(180,180,180))); */
   
-  layer = new SecondLayer();
+  oscP5 = new OscP5(this, 13445); 
+  remote = new NetAddress("localhost", 13446);
   
-  // smooth();
+  smooth();
 }
+
+void oscEvent(OscMessage msg) {
+  
+  if(msg.checkAddrPattern("/cam_x")) 
+    cam_x = msg.get(0).intValue();
+      
+  if(msg.checkAddrPattern("/cam_y")) 
+    cam_y = msg.get(0).intValue();
+  
+  if(msg.checkAddrPattern("/cam_z")) 
+    cam_z = msg.get(0).intValue();
+   
+  if(msg.checkAddrPattern("/cam_px")) 
+    cam_px = msg.get(0).intValue();
+      
+  if(msg.checkAddrPattern("/cam_py")) 
+    cam_py = msg.get(0).intValue();
+  
+  if(msg.checkAddrPattern("/cam_pz")) 
+    cam_pz = msg.get(0).intValue();
+    
+  if(msg.checkAddrPattern("/wind")) {
+    wind.x = msg.get(0).floatValue();
+    wind.y = msg.get(1).floatValue();
+    wind.z = msg.get(2).floatValue();
+  }
+  
+  if(msg.checkAddrPattern("/alignment"))
+    alignment = msg.get(0).floatValue();
+    
+  if(msg.checkAddrPattern("/separation"))
+    separation = msg.get(0).floatValue();
+    
+  if(msg.checkAddrPattern("/cohesion"))
+    cohesion = msg.get(0).floatValue();
+     
+  if(msg.checkAddrPattern("/randomization"))
+    randomisation = msg.get(0).floatValue();
+    
+  if(msg.checkAddrPattern("/max_speed"))
+    maxspeed = msg.get(0).floatValue();
+    
+  if(msg.checkAddrPattern("/max_force"))
+    maxforce = msg.get(0).floatValue();
+}
+
 
 void keyPressed() {
   if (key == 32) pause = !pause;
@@ -75,9 +129,9 @@ void draw() {
 
   if (pause == true) return;
   background(255);
-  //camera(mouseX, ghetto.y/2.0, mouseY + 00, ghetto.x/2.0, ghetto.y/2.0,0,   0,1,0); 
-  camera(-70,ghetto.y/2.0, 550, ghetto.x/2.0, ghetto.y/2.0, 0,  0,1,0);
-  rotateY(PI/3);
+  // camera(mouseX, ghetto.y/2.0, mouseY + 00, ghetto.x/2.0, ghetto.y/2.0,0,   0,1,0); 
+  camera(cam_x, cam_y, cam_z, cam_px, cam_py, cam_pz, 0,1,0);
+  rotateY(PI/2);
 
 
   matter.render();
@@ -112,10 +166,31 @@ class Flock {
   }
   
   void run() {
+    
+    OscBundle bundle = new OscBundle();
+    
     for (int i = 0; i < boids.size(); i++) {
       Boid b = (Boid) boids.get(i);  
       b.run(boids);  // Passing the entire list of boids to each boid individually
+        
+      OscMessage msg = new OscMessage("/" + i);
+      
+      float tx = b.loc.x - 250;
+      float ty = (b.loc.y - 250) * -1;
+      float tz = (b.loc.z - 250) * -1;
+      
+      float rad = sqrt(tx * tx + ty * ty + tz * tz);
+      
+      msg.add(tx);
+      msg.add(ty);
+      msg.add(tz);
+      msg.add(rad / 353.55);
+      msg.add(b.vel.magnitude());
+      
+      bundle.add(msg);
     }
+    
+    oscP5.send(bundle, remote);
   }
 
   void addBoid(Boid b) {
@@ -130,9 +205,9 @@ class Boid {
   Vector3D loc;
   Vector3D vel;
   Vector3D acc;
+  
   float r;
-  float maxforce;    // Maximum steering force
-  float maxspeed;    // Maximum speed
+  
   int group;
   
   
@@ -148,13 +223,11 @@ class Boid {
   // construction particle
   Particle construction;
   
-  Boid(Vector3D l, float ms, float mf, int _grp) {
+  Boid(Vector3D l, int _grp) {
     acc = new Vector3D(0,0);
     vel = new Vector3D(random(-1,1),random(-1,1));
     loc = l.copy();
     r = 2.0f;
-    maxspeed = ms;
-    maxforce = mf;
     group = _grp;
     neighbors = new ArrayList();
     neighbordist = 60f;
@@ -178,25 +251,27 @@ class Boid {
 
   // We accumulate a new acceleration each time based on three rules
   void flock(ArrayList boids) {
+    
     Vector3D sep = separate(boids);   // Separation
     Vector3D ali = align(boids);      // Alignment
     Vector3D coh = cohesion(boids);   // Cohesion
+    
     // Arbitrarily weight these forces
     sep.mult(separation);
     ali.mult(alignment);
     coh.mult(cohesion);
+    
     // Add the force vectors to acceleration
     acc.add(sep);
     acc.add(ali);
     acc.add(coh);
+    acc.add(wind);
     
     Vector3D rand = new Vector3D(random(-1,1),random(-1,1),random(-1,1));
     rand.mult(randomisation);
     acc.add(rand);
     
   // if (random(1.0f) > 0.99f) placeParticle();
-
-    
   }
   
   void placeParticle() {
@@ -219,6 +294,7 @@ class Boid {
   
   // Method to update location
   void updateFlocking() {
+    
     // Update velocity
     vel.add(acc);
     // Limit speed
@@ -237,12 +313,17 @@ class Boid {
   void updateNeighbors(ArrayList boids) {
     // forget your former neighbors
     neighbors.clear();
-    for (int i = 0 ; i < boids.size(); i++) {   
+    for (int i = 0 ; i < boids.size(); i++) {
+      
       Boid other = (Boid) boids.get(i);
       Vector3D d = new Vector3D();
+      
       d = d.sub(loc, other.loc);
+      
       // If the distance is greater than 0 and less than an arbitrary amount (0 when you are yourself)
+      
       if ((d.length() > 0) && (d.length() < neighbordist))
+      
         if (vel.angleBetweenTwo2D(d) <= perceptionangle / 2.0)
         {
           neighbors.add(other);   
@@ -252,10 +333,10 @@ class Boid {
             stroke(90);
             line(loc.x,loc.y,loc.z,other.loc.x,other.loc.y,other.loc.z);    
           }
-          int grp = other.group;
-            if(grp != this.group){
-              this.group = grp;
-          }
+          fill(0, 0, 0);
+          textSize(18);
+          text("bla", loc.x, loc.y, loc.z);
+              
         }
     }
   }
